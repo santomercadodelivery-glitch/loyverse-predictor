@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Predictor de Demanda · Santo Mercado</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f4f6f9; --surface: #ffffff; --border: #e2e8f0;
+    --text: #1a202c; --text2: #64748b; --text3: #94a3b8;
+    --blue: #2563eb; --blue-light: #eff6ff;
+    --green-bg: #f0fdf4; --green-text: #15803d;
+    --amber-bg: #fffbeb; --amber-text: #b45309;
+    --red-bg: #fef2f2; --red-text: #b91c1c;
+    --radius: 10px; --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .logo { font-size: 15px; font-weight: 600; color: var(--text); }
+  .logo span { color: var(--blue); }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+  .conn-dot.ok { background: #22c55e; }
+  .conn-dot.err { background: #ef4444; }
+  .topbar-right { font-size: 12px; color: var(--text3); }
+  .main { max-width: 480px; margin: 0 auto; padding: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .metric .lbl { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .metric .val { font-size: 24px; font-weight: 600; color: var(--text); line-height: 1; }
+  .metric .sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .ctrl label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 5px; }
+  .ctrl select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--surface); color: var(--text); }
+  .search-wrap { position: relative; margin-bottom: 10px; }
+  .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; }
+  .search-wrap input { width: 100%; padding: 9px 12px 9px 34px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); color: var(--text); }
+  .search-wrap input:focus { outline: none; border-color: var(--blue); }
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  .thead { display: grid; grid-template-columns: 1fr 48px 52px 58px 44px; padding: 8px 12px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .thead span { font-size: 11px; font-weight: 600; color: var(--text2); text-align: center; }
+  .thead span:first-child { text-align: left; }
+  .trow { display: grid; grid-template-columns: 1fr 48px 52px 58px 44px; padding: 10px 12px; border-bottom: 1px solid var(--border); align-items: center; }
+  .trow:last-child { border-bottom: none; }
+  .trow:hover { background: var(--bg); }
+  .pname { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pcat { font-size: 11px; color: var(--text3); }
+  .tcell { font-size: 13px; text-align: center; color: var(--text); }
+  .tcell.pred { font-weight: 600; color: var(--blue); }
+  .stock-days { font-size: 10px; color: var(--text3); display: block; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 20px; display: inline-block; }
+  .badge.high { background: var(--red-bg); color: var(--red-text); }
+  .badge.med { background: var(--amber-bg); color: var(--amber-text); }
+  .badge.low { background: var(--green-bg); color: var(--green-text); }
+  .tfoot { padding: 10px 14px; font-size: 12px; color: var(--text3); text-align: center; background: var(--bg); border-top: 1px solid var(--border); }
+  .state { text-align: center; padding: 40px 20px; color: var(--text2); font-size: 14px; }
+  .error-card { background: var(--red-bg); border: 1px solid #fecaca; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; font-size: 13px; color: var(--red-text); line-height: 1.6; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s; }
+  .btn:active { opacity: .85; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-outline { background: var(--surface); color: var(--text); border: 1px solid var(--border); margin-bottom: 12px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #ddd; border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="conn-dot" id="connDot"></div>
+    <div class="logo">Santo <span>Mercado</span> — Pedidos</div>
+  </div>
+  <div class="topbar-right" id="topbarInfo">Conectando...</div>
+</div>
+<div class="main">
+  <div id="errorCard" class="error-card hidden"></div>
+  <div id="stateInitial" class="state">
+    <div class="spinner"></div>
+    <br><br>Cargando datos desde Loyverse...
+  </div>
+  <div id="appContent" class="hidden">
+    <div class="metrics">
+      <div class="metric">
+        <div class="lbl">Productos con ventas</div>
+        <div class="val" id="mProductos">—</div>
+        <div class="sub" id="mPeriodo">en el período</div>
+      </div>
+      <div class="metric">
+        <div class="lbl">Pred. próximos 7 días</div>
+        <div class="val" id="mPrediccion">—</div>
+        <div class="sub">unidades totales</div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="ctrl">
+        <label>Período de análisis</label>
+        <select id="periodo" onchange="recalcular()">
+          <option value="7">7 días</option>
+          <option value="30" selected>30 días</option>
+          <option value="90">90 días</option>
+          <option value="365">1 año</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>Ordenar por</label>
+        <select id="orden" onchange="renderTabla()">
+          <option value="alerta">Alerta alta primero</option>
+          <option value="prediccion">Mayor predicción</option>
+          <option value="ventas">Mayor venta</option>
+          <option value="nombre">Nombre A-Z</option>
+        </select>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="buscar" placeholder="Buscar producto o categoría..." oninput="renderTabla()" />
+    </div>
+    <div id="tableContainer"></div>
+    <br>
+    <button class="btn btn-outline" onclick="recalcular()">↻ Actualizar datos</button>
+    <button class="btn btn-primary" onclick="exportarCSV()">↓ Exportar pedido sugerido (.csv)</button>
+  </div>
+</div>
+<script>
+const BASE = '/api/loyverse';
+let productosData = [];
+let predicciones = [];
+
+async function apiFetch(endpoint, params = {}) {
+  const qs = new URLSearchParams({ endpoint, ...params }).toString();
+  const res = await fetch(`${BASE}?${qs}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'HTTP ' + res.status);
+  }
+  return res.json();
+}
+
+async function cargarDatos() {
+  const periodo = parseInt(document.getElementById('periodo').value);
+  const ahora = new Date();
+  const inicio = new Date();
+  inicio.setDate(ahora.getDate() - periodo);
+  const fi = inicio.toISOString().replace(/\.\d+Z$/, '.000Z');
+  const ff = ahora.toISOString().replace(/\.\d+Z$/, '.000Z');
+
+  let items = [], cursor = null, calls = 0;
+  do {
+    const p = { limit: 250 };
+    if (cursor) p.cursor = cursor;
+    const data = await apiFetch('items', p);
+    items = items.concat(data.items || []);
+    cursor = data.cursor || null;
+  } while (cursor && ++calls < 15);
+  productosData = items;
+
+  let receipts = [], cursor2 = null, calls2 = 0;
+  do {
+    const p = { limit: 250, date_from: fi, date_to: ff };
+    if (cursor2) p.cursor = cursor2;
+    const data = await apiFetch('receipts', p);
+    receipts = receipts.concat(data.receipts || []);
+    cursor2 = data.cursor || null;
+  } while (cursor2 && ++calls2 < 30);
+
+  calcularPredicciones(receipts, periodo);
+}
+
+function calcularPredicciones(receipts, periodo) {
+  const vpp = {};
+  for (const r of receipts) {
+    for (const l of (r.line_items || [])) {
+      if (!l.item_id) continue;
+      vpp[l.item_id] = (vpp[l.item_id] || 0) + Math.abs(parseFloat(l.quantity) || 0);
+    }
+  }
+  const mapa = {};
+  for (const p of productosData) mapa[p.id] = p;
+  predicciones = [];
+  for (const [id, vendido] of Object.entries(vpp)) {
+    if (vendido < 0.01) continue;
+    const prod = mapa[id];
+    if (!prod) continue;
+    const promDiario = vendido / periodo;
+    const pred7 = Math.ceil(promDiario * 7);
+    const pred30 = Math.ceil(promDiario * 30);
+    const stock = (prod.variants || []).reduce((s, v) =>
+      s + (v.stores || []).reduce((ss, st) => ss + (parseFloat(st.available_for_sale) || 0), 0), 0);
+    const diasStock = promDiario > 0 ? stock / promDiario : 999;
+    predicciones.push({
+      id, nombre: prod.item_name || 'Sin nombre',
+      categoria: prod.category_name || '',
+      vendidoPeriodo: Math.round(vendido),
+      pred7, pred30,
+      stock: Math.round(stock),
+      diasStock: Math.round(diasStock),
+      alerta: diasStock < 3 ? 'high' : diasStock < 7 ? 'med' : 'low'
+    });
+  }
+  document.getElementById('mProductos').textContent = predicciones.length.toLocaleString('es-CL');
+  document.getElementById('mPrediccion').textContent = predicciones.reduce((s,p) => s+p.pred7, 0).toLocaleString('es-CL');
+  document.getElementById('mPeriodo').textContent = `últimos ${periodo} días`;
+  renderTabla();
+}
+
+function renderTabla() {
+  const orden = document.getElementById('orden').value;
+  const busq = (document.getElementById('buscar').value || '').toLowerCase();
+  let lista = predicciones.filter(p =>
+    p.nombre.toLowerCase().includes(busq) || p.categoria.toLowerCase().includes(busq)
+  );
+  const o = {high:0, med:1, low:2};
+  if (orden === 'alerta') lista.sort((a,b) => o[a.alerta]-o[b.alerta]);
+  else if (orden === 'prediccion') lista.sort((a,b) => b.pred7-a.pred7);
+  else if (orden === 'ventas') lista.sort((a,b) => b.vendidoPeriodo-a.vendidoPeriodo);
+  else lista.sort((a,b) => a.nombre.localeCompare(b.nombre,'es'));
+  const top = lista.slice(0, 150);
+  const al = {high:'Alta', med:'Media', low:'OK'};
+  let html = '<div class="table-card"><div class="thead"><span>Producto</span><span>Vend.</span><span>Pred 7d</span><span>Stock</span><span>Alerta</span></div>';
+  for (const p of top) {
+    const stockStr = p.stock > 0
+      ? `${p.stock}<span class="stock-days">${p.diasStock < 999 ? p.diasStock+'d' : '∞'}</span>`
+      : '—';
+    html += `<div class="trow">
+      <div><div class="pname">${esc(p.nombre)}</div><div class="pcat">${esc(p.categoria)}</div></div>
+      <div class="tcell">${p.vendidoPeriodo}</div>
+      <div class="tcell pred">${p.pred7}</div>
+      <div class="tcell">${stockStr}</div>
+      <div style="text-align:center"><span class="badge ${p.alerta}">${al[p.alerta]}</span></div>
+    </div>`;
+  }
+  if (lista.length > 150) html += `<div class="tfoot">Mostrando 150 de ${lista.length} · Usa el buscador para filtrar</div>`;
+  html += '</div>';
+  document.getElementById('tableContainer').innerHTML = html;
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function recalcular() {
+  document.getElementById('tableContainer').innerHTML = '<div class="state"><div class="spinner"></div></div>';
+  try { await cargarDatos(); } catch(e) { showError(e.message); }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorCard');
+  el.innerHTML = `<strong>Error:</strong> ${msg}`;
+  el.classList.remove('hidden');
+}
+
+function exportarCSV() {
+  if (!predicciones.length) return;
+  let lista = [...predicciones].sort((a,b) => {const o={high:0,med:1,low:2}; return o[a.alerta]-o[b.alerta];});
+  let csv = 'Producto,Categoría,Vendido período,Predicción 7d,Predicción 30d,Stock actual,Días de stock,Alerta\n';
+  for (const p of lista) {
+    csv += `"${p.nombre}","${p.categoria}",${p.vendidoPeriodo},${p.pred7},${p.pred30},${p.stock},${p.diasStock===999?'sin-track':p.diasStock},${p.alerta}\n`;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'}));
+  a.download = 'pedido_sugerido.csv';
+  a.click();
+}
+
+(async () => {
+  try {
+    await cargarDatos();
+    document.getElementById('connDot').classList.add('ok');
+    document.getElementById('topbarInfo').textContent = 'Conectado · Loyverse';
+    document.getElementById('stateInitial').classList.add('hidden');
+    document.getElementById('appContent').classList.remove('hidden');
+  } catch(e) {
+    document.getElementById('connDot').classList.add('err');
+    document.getElementById('topbarInfo').textContent = 'Error de conexión';
+    document.getElementById('stateInitial').classList.add('hidden');
+    showError(e.message);
+  }
+})();
+</script>
+</body>
+</html>
