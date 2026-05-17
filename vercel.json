@@ -1,11 +1,3 @@
 {
-  "version": 2,
-  "functions": {
-    "api/loyverse.js": {
-      "runtime": "edge"
-    }
-  },
-  "rewrites": [
-    { "source": "/api/loyverse", "destination": "/api/loyverse" }
-  ]
+  "version": 2
 }
