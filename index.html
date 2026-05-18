@@ -153,8 +153,10 @@ async function cargarDatos() {
     const data = await apiFetch('items', p);
     items = items.concat(data.items || []);
     cursor = data.cursor || null;
-  } while (cursor && ++calls < 15);
-  productosData = items;
+    calls++;
+    console.log('Página items:', calls, '| Total hasta ahora:', items.length, '| cursor:', cursor);
+  } while (cursor && calls < 50);
+ productosData = items;
 
   let receipts = [], cursor2 = null, calls2 = 0;
   do {
@@ -196,7 +198,7 @@ function calcularPredicciones(receipts, periodo) {
       pred7, pred30,
       stock: Math.round(stock),
       diasStock: Math.round(diasStock),
-      alerta: diasStock < 3 ? 'high' : diasStock < 7 ? 'med' : 'low'
+      alerta: stock === 0 ? 'low' : diasStock < 3 ? 'high' : diasStock < 7 ? 'med' : 'low'
     });
   }
   document.getElementById('mProductos').textContent = predicciones.length.toLocaleString('es-CL');
