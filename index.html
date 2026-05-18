@@ -153,8 +153,10 @@ async function cargarDatos() {
     const data = await apiFetch('items', p);
     items = items.concat(data.items || []);
     cursor = data.cursor || null;
-  } while (cursor && ++calls < 15);
-  productosData = items;
+    calls++;
+    console.log('Página items:', calls, '| Total hasta ahora:', items.length, '| cursor:', cursor);
+  } while (cursor && calls < 50);
+ productosData = items;
 
   let receipts = [], cursor2 = null, calls2 = 0;
   do {
