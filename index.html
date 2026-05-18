@@ -196,7 +196,7 @@ function calcularPredicciones(receipts, periodo) {
       pred7, pred30,
       stock: Math.round(stock),
       diasStock: Math.round(diasStock),
-      alerta: diasStock < 3 ? 'high' : diasStock < 7 ? 'med' : 'low'
+      alerta: stock === 0 ? 'low' : diasStock < 3 ? 'high' : diasStock < 7 ? 'med' : 'low'
     });
   }
   document.getElementById('mProductos').textContent = predicciones.length.toLocaleString('es-CL');
